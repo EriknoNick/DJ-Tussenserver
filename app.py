@@ -10,10 +10,25 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 @app.route('/openai-webhook', methods=['POST'])
 def openai_webhook():
     data = request.json
+    import logging
+
+# Zet logging aan om de ontvangen data van DJ te bekijken
+logging.basicConfig(level=logging.INFO)
+
+@app.route('/openai-webhook', methods=['POST'])
+def openai_webhook():
+    data = request.json
+
+    # 👉 Hier voegen we de loggingregel toe
+    logging.info(f"DJ stuurde deze data: {data}")  # Log de ontvangen JSON
+
+    if not data:
+        return jsonify({"error": "Lege request ontvangen"}), 400
+
     user_message = data.get("message")  # Haal de vraag uit DJ op
 
     if not user_message:
-        return jsonify({"error": "Geen bericht ontvangen"}), 400
+        return jsonify({"error": "Geen bericht ontvangen, verkeerde JSON-structuur?"}), 400
 
     # Verstuur de vraag naar OpenAI
     response = openai.ChatCompletion.create(
