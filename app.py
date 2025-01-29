@@ -22,22 +22,23 @@ def openai_webhook():
     if not data:
         return jsonify({"error": "Lege request ontvangen"}), 400
 
-    # Kijk welke veldnaam DJ gebruikt voor de vraag (kan 'message', 'text' of iets anders zijn)
-    user_message = data.get("message") or data.get("text") or data.get("query")
+    # DJ stuurt "text" in plaats van "message"
+    user_message = data.get("text")  # Aangepast naar "text"
 
     if not user_message:
         return jsonify({"error": "Geen geldig bericht ontvangen. Controleer de JSON-structuur."}), 400
 
     try:
-        # Verstuur de vraag naar OpenAI
-        response = openai.ChatCompletion.create(
+        # **Nieuwe OpenAI-aanroep volgens de juiste syntax**
+        client = openai.OpenAI(api_key=OPENAI_API_KEY)
+
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo-0613",
-            messages=[{"role": "user", "content": user_message}],
-            api_key=OPENAI_API_KEY
+            messages=[{"role": "user", "content": user_message}]
         )
 
         # Haal het antwoord op en stuur het terug naar DJ
-        openai_response = response["choices"][0]["message"]["content"]
+        openai_response = response.choices[0].message.content
         return jsonify({"response": openai_response})
 
     except Exception as e:
