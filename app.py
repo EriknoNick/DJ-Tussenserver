@@ -1,50 +1,23 @@
-from flask import Flask, request, jsonify
-import openai
-import os
-import logging
+from flask import Flask, request, Response
+import requests
 
 app = Flask(__name__)
 
-# Zet logging aan om de ontvangen data van DJ te bekijken
-logging.basicConfig(level=logging.INFO)
+IBKR_GATEWAY = "http://100.85.23.15:5000"  # vervang met Tailscale IP van je Hetzner-server
 
-# Haal de OpenAI API-key op vanuit de omgevingsvariabelen
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-@app.route('/openai-webhook', methods=['POST'])
-def openai_webhook():
-    # Haal de JSON-data op van DJ
-    data = request.json
-
-    # Log de volledige binnenkomende request zodat we zien wat DJ stuurt
-    logging.info(f"DJ stuurde deze data: {data}")
-
-    if not data:
-        return jsonify({"error": "Lege request ontvangen"}), 400
-
-    # DJ stuurt "text" in plaats van "message"
-    user_message = data.get("text")  # Aangepast naar "text"
-
-    if not user_message:
-        return jsonify({"error": "Geen geldig bericht ontvangen. Controleer de JSON-structuur."}), 400
-
+@app.route('/<path:path>', methods=['GET', 'POST'])
+def proxy(path):
+    url = f"{IBKR_GATEWAY}/{path}"
+    headers = {'Content-Type': 'application/json'}
     try:
-        # **Nieuwe OpenAI-aanroep volgens de juiste syntax**
-        client = openai.OpenAI(api_key=OPENAI_API_KEY)
+        if request.method == 'GET':
+            resp = requests.get(url, headers=headers, verify=False)
+        else:
+            resp = requests.post(url, headers=headers, json=request.json, verify=False)
 
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": user_message}]
-        )
-
-        # Haal het antwoord op en stuur het terug naar DJ
-        openai_response = response.choices[0].message.content
-        return jsonify({"response": openai_response})
-
+        return Response(resp.content, status=resp.status_code, content_type=resp.headers.get('Content-Type', 'application/json'))
     except Exception as e:
-        logging.error(f"OpenAI-fout: {str(e)}")
-        return jsonify({"error": "Er is een probleem met de OpenAI-verwerking."}), 500
+        return {"error": str(e)}, 500
 
-# Start de server op de juiste poort
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
+    app.run(host='0.0.0.0', port=10000)
